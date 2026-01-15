@@ -1,0 +1,29 @@
+# Node / general
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-lock.yaml
+dist/
+build/
+.cache/
+.tmp/
+*.log
+
+# OS/editor junk
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Env files (never commit real secrets)
+.env
+.env.*
+server/.env
+client/.env
+
+# Server uploads (dev/local)
+server/uploads/
+
+# Test coverage
+coverage/
