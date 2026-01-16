@@ -3,7 +3,7 @@ import Order from '../models/Order.js';
 import Product from '../models/Product.js';
 import User from '../models/User.js';
 import { protect } from '../middleware/auth.js';
-import { sendOrderEmails } from '../utils/mailer.js'; // optional; non-blocking
+import { sendOrderEmails } from '../utils/mailer.js';
 
 const router = express.Router();
 
@@ -26,7 +26,6 @@ router.post('/', protect, async (req, res) => {
     const user = await User.findById(req.user.id).select('name email');
     if (!user) return res.status(401).json({ message: 'User not found' });
 
-    // Validate items and compute totals
     const ids = items.map(i => i.product);
     const dbProducts = await Product.find({ _id: { $in: ids } }).select('_id name price countInStock imageUrl');
     const map = new Map(dbProducts.map(p => [String(p._id), p]));
@@ -62,10 +61,10 @@ router.post('/', protect, async (req, res) => {
 
     if (stockOps.length) await Product.bulkWrite(stockOps);
 
-    // Respond immediately (prevents 120s timeout)
+    // Respond immediately (prevents long timeouts)
     res.status(201).json({ ok: true, orderId: order._id, total });
 
-    // Fire-and-forget emails (non-blocking)
+    // Non-blocking emails
     setImmediate(() => {
       sendOrderEmails({ order, user, items: normalized, subtotal, total })
         .catch(e => console.error('Order email failed (non-blocking):', e.message));
@@ -76,7 +75,7 @@ router.post('/', protect, async (req, res) => {
   }
 });
 
-// Get one order (details)
+// Get one order
 router.get('/:id', protect, async (req, res) => {
   const order = await Order.findById(req.params.id).populate('items.product', 'name price');
   if (!order) return res.status(404).json({ message: 'Order not found' });

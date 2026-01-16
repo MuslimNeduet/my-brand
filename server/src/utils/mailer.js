@@ -1,17 +1,16 @@
 import nodemailer from 'nodemailer';
 
 const {
-  EMAIL_ENABLED,      // "false" to disable sending
-  SMTP_SERVICE,       // e.g., "gmail"
-  SMTP_HOST,          // e.g., "smtp.gmail.com"
-  SMTP_PORT,          // e.g., "465"
-  SMTP_SECURE,        // "true" or "false"
+  EMAIL_ENABLED,
+  SMTP_SERVICE,
+  SMTP_HOST,
+  SMTP_PORT,
+  SMTP_SECURE,
   SMTP_USER,
   SMTP_PASS,
   ORDER_EMAIL_TO
 } = process.env;
 
-// Build transporter if email is enabled
 function buildTransporter() {
   if (String(EMAIL_ENABLED || 'true') === 'false') return null;
   if (SMTP_HOST && SMTP_USER && SMTP_PASS) {
@@ -20,7 +19,7 @@ function buildTransporter() {
       port: Number(SMTP_PORT || 587),
       secure: String(SMTP_SECURE || 'false') === 'true',
       auth: { user: SMTP_USER, pass: SMTP_PASS },
-      connectionTimeout: 8000, // fail fast
+      connectionTimeout: 8000,
       socketTimeout: 8000
     });
   }
@@ -32,7 +31,6 @@ function buildTransporter() {
       socketTimeout: 8000
     });
   }
-  // No config — disable
   return null;
 }
 
@@ -68,11 +66,8 @@ ${summary}`;
     text: `Thanks for your order!\n\n${text}`
   };
 
-  // Fire both sends without blocking the route; swallow individual errors
-  const tasks = [
+  await Promise.allSettled([
     adminMsg && transporter.sendMail(adminMsg),
     transporter.sendMail(customerMsg)
-  ].filter(Boolean);
-
-  await Promise.allSettled(tasks);
+  ].filter(Boolean));
 }

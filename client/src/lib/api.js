@@ -3,7 +3,6 @@ const baseURL = import.meta.env.VITE_API_URL || '/api';
 
 const api = axios.create({ baseURL, timeout: 12000 });
 
-// Avoid 304/no-body on GETs
 api.interceptors.request.use((config) => {
   if ((config.method || 'get').toLowerCase() === 'get') {
     config.params = { ...(config.params || {}), _ts: Date.now() };

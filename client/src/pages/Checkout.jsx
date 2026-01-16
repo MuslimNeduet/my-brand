@@ -2,20 +2,23 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api.js';
 import { useCart } from '../state/CartContext.jsx';
+import { useAuth } from '../state/AuthContext.jsx';
 
 export default function Checkout() {
   const { items, subtotal, clearCart } = useCart();
+  const { isAuthenticated } = useAuth();
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const navigate = useNavigate();
 
   const placeOrder = async (e) => {
     e.preventDefault();
+    if (!isAuthenticated) return navigate('/login');
     setLoading(true);
     setErr('');
     try {
       const payload = {
-        items: items.map(i => ({ product: i._id, qty: i.qty })),
+        items: items.map(i => ({ product: i._id, qty: Number(i.qty || 1) })),
         tax: 0,
         shipping: 0
       };
@@ -27,7 +30,6 @@ export default function Checkout() {
         throw new Error(res?.data?.message || 'Unknown error');
       }
     } catch (e) {
-      console.error('Order place error:', e);
       setErr(e?.response?.data?.message || e.message || 'Failed to place order');
     } finally {
       setLoading(false);

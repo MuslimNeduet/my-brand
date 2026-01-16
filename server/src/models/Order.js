@@ -17,8 +17,8 @@ const orderSchema = new mongoose.Schema(
     shipping: { type: Number, default: 0 },
     total: { type: Number, required: true },
     status: { type: String, enum: ['created', 'paid', 'cancelled'], default: 'created' },
-    email: { type: String }, // snapshot of user email at order time
-    name: { type: String }   // snapshot of user name at order time
+    email: { type: String },
+    name: { type: String }
   },
   { timestamps: true }
 );
