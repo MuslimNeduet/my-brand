@@ -3,11 +3,19 @@ import Order from '../models/Order.js';
 import Product from '../models/Product.js';
 import User from '../models/User.js';
 import { protect } from '../middleware/auth.js';
-import { sendOrderEmails } from '../utils/mailer.js';
+import { sendOrderEmails } from '../utils/mailer.js'; // optional; non-blocking
 
 const router = express.Router();
 
-// Create order
+// List current user's orders
+router.get('/', protect, async (req, res) => {
+  const orders = await Order.find({ user: req.user.id })
+    .sort({ createdAt: -1 })
+    .select('_id total status createdAt');
+  res.json(orders);
+});
+
+// Create order (respond first, email later)
 router.post('/', protect, async (req, res) => {
   try {
     const { items = [], tax = 0, shipping = 0 } = req.body || {};
@@ -15,40 +23,26 @@ router.post('/', protect, async (req, res) => {
       return res.status(400).json({ message: 'No items in order' });
     }
 
-    // Load user snapshot
     const user = await User.findById(req.user.id).select('name email');
     if (!user) return res.status(401).json({ message: 'User not found' });
 
-    // Validate items against DB, compute totals, collect stock updates
-    const productIds = items.map(i => i.product);
-    const dbProducts = await Product.find({ _id: { $in: productIds } }).select('_id name price countInStock imageUrl');
+    // Validate items and compute totals
+    const ids = items.map(i => i.product);
+    const dbProducts = await Product.find({ _id: { $in: ids } }).select('_id name price countInStock imageUrl');
+    const map = new Map(dbProducts.map(p => [String(p._id), p]));
 
-    const productMap = new Map(dbProducts.map(p => [String(p._id), p]));
     const normalized = [];
     const stockOps = [];
 
     for (const i of items) {
-      const p = productMap.get(String(i.product));
+      const p = map.get(String(i.product));
       if (!p) return res.status(400).json({ message: `Product not found: ${i.product}` });
-
       const qty = Number(i.qty || 1);
       if (qty < 1) return res.status(400).json({ message: `Invalid qty for ${p.name}` });
       if (p.countInStock < qty) return res.status(400).json({ message: `Not enough stock for ${p.name}` });
 
-      normalized.push({
-        product: p._id,
-        name: p.name,
-        price: Number(p.price || 0),
-        qty,
-        imageUrl: p.imageUrl || null
-      });
-
-      stockOps.push({
-        updateOne: {
-          filter: { _id: p._id },
-          update: { $inc: { countInStock: -qty } }
-        }
-      });
+      normalized.push({ product: p._id, name: p.name, price: Number(p.price || 0), qty, imageUrl: p.imageUrl || null });
+      stockOps.push({ updateOne: { filter: { _id: p._id }, update: { $inc: { countInStock: -qty } } } });
     }
 
     const subtotal = normalized.reduce((sum, i) => sum + i.price * i.qty, 0);
@@ -66,13 +60,12 @@ router.post('/', protect, async (req, res) => {
       name: user.name
     });
 
-    // Update stock in bulk
     if (stockOps.length) await Product.bulkWrite(stockOps);
 
-    // Respond immediately so the client doesn’t hang
+    // Respond immediately (prevents 120s timeout)
     res.status(201).json({ ok: true, orderId: order._id, total });
 
-    // Background email sending — do not block the HTTP response
+    // Fire-and-forget emails (non-blocking)
     setImmediate(() => {
       sendOrderEmails({ order, user, items: normalized, subtotal, total })
         .catch(e => console.error('Order email failed (non-blocking):', e.message));
@@ -83,7 +76,7 @@ router.post('/', protect, async (req, res) => {
   }
 });
 
-// Get order by id
+// Get one order (details)
 router.get('/:id', protect, async (req, res) => {
   const order = await Order.findById(req.params.id).populate('items.product', 'name price');
   if (!order) return res.status(404).json({ message: 'Order not found' });
