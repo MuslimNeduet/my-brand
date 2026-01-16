@@ -1,93 +1,78 @@
 import nodemailer from 'nodemailer';
 
 const {
-  SMTP_SERVICE,
-  SMTP_HOST,
-  SMTP_PORT,
-  SMTP_SECURE,
+  EMAIL_ENABLED,      // "false" to disable sending
+  SMTP_SERVICE,       // e.g., "gmail"
+  SMTP_HOST,          // e.g., "smtp.gmail.com"
+  SMTP_PORT,          // e.g., "465"
+  SMTP_SECURE,        // "true" or "false"
   SMTP_USER,
-  SMTP_PASS
+  SMTP_PASS,
+  ORDER_EMAIL_TO
 } = process.env;
 
-let transporter;
-
-if (SMTP_SERVICE && SMTP_USER && SMTP_PASS) {
-  transporter = nodemailer.createTransport({
-    service: SMTP_SERVICE,
-    auth: { user: SMTP_USER, pass: SMTP_PASS }
-  });
-} else if (SMTP_HOST && SMTP_USER && SMTP_PASS) {
-  transporter = nodemailer.createTransport({
-    host: SMTP_HOST,
-    port: Number(SMTP_PORT || 587),
-    secure: String(SMTP_SECURE || 'false') === 'true',
-    auth: { user: SMTP_USER, pass: SMTP_PASS }
-  });
-} else {
-  const account = await nodemailer.createTestAccount();
-  transporter = nodemailer.createTransport({
-    host: 'smtp.ethereal.email',
-    port: 587,
-    secure: false,
-    auth: { user: account.user, pass: account.pass }
-  });
-  console.warn('No SMTP env provided. Using Ethereal test account:', {
-    user: account.user,
-    pass: account.pass
-  });
-}
-
-export { transporter };
-
-export async function verifyMailer() {
-  try {
-    console.log('Verifying SMTP transport with config:', {
-      service: SMTP_SERVICE || null,
-      host: SMTP_HOST || null,
-      port: SMTP_PORT || null,
-      secure: SMTP_SECURE || null,
-      user: SMTP_USER ? `${SMTP_USER.slice(0, 2)}***` : null
-    });
-    await transporter.verify();
-    console.log('SMTP transport verified and ready.');
-  } catch (e) {
-    console.error('SMTP verification failed:', {
-      message: e.message,
-      code: e.code,
-      command: e.command,
-      response: e.response
+// Build transporter if email is enabled
+function buildTransporter() {
+  if (String(EMAIL_ENABLED || 'true') === 'false') return null;
+  if (SMTP_HOST && SMTP_USER && SMTP_PASS) {
+    return nodemailer.createTransport({
+      host: SMTP_HOST,
+      port: Number(SMTP_PORT || 587),
+      secure: String(SMTP_SECURE || 'false') === 'true',
+      auth: { user: SMTP_USER, pass: SMTP_PASS },
+      connectionTimeout: 8000, // fail fast
+      socketTimeout: 8000
     });
   }
+  if (SMTP_SERVICE && SMTP_USER && SMTP_PASS) {
+    return nodemailer.createTransport({
+      service: SMTP_SERVICE,
+      auth: { user: SMTP_USER, pass: SMTP_PASS },
+      connectionTimeout: 8000,
+      socketTimeout: 8000
+    });
+  }
+  // No config — disable
+  return null;
 }
 
-export function orderEmailHtml({ customer, address, items, totals }) {
-  const itemsHtml = items
-    .map(
-      (it) =>
-        `<tr><td>${it.name}</td><td style="text-align:center;">${it.qty}</td><td style="text-align:right;">$${Number(
-          it.price
-        ).toFixed(2)}</td></tr>`
-    )
-    .join('');
+const transporter = buildTransporter();
 
-  return `
-    <div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;">
-      <h2>New Order</h2>
-      <p><strong>Name:</strong> ${customer.name}</p>
-      <p><strong>Email:</strong> ${customer.email}</p>
-      <p><strong>Phone:</strong> ${customer.phone || 'N/A'}</p>
-      <h3>Shipping Address</h3>
-      <p>
-        ${address.houseNo}, ${address.streetNo}<br/>
-        ${address.area}, ${address.city}<br/>
-        ${address.province}, ${address.country}
-      </p>
-      <h3>Items</h3>
-      <table style="width:100%;border-collapse:collapse;" cellpadding="8" border="1">
-        <thead><tr><th align="left">Product</th><th>Qty</th><th align="right">Price</th></tr></thead>
-        <tbody>${itemsHtml}</tbody>
-      </table>
-      <h3>Total: $${Number(totals.subtotal).toFixed(2)}</h3>
-    </div>
-  `;
+export async function sendOrderEmails({ order, user, items, subtotal, total }) {
+  if (!transporter) {
+    console.warn('Email disabled or not configured; skipping order emails.');
+    return;
+  }
+  const summary = items.map(i => `${i.name} x${i.qty} @ ${i.price}`).join('\n');
+  const text = `New order ${order._id}
+Customer: ${user.name} <${user.email}>
+Subtotal: ${subtotal}
+Tax: ${order.tax}
+Shipping: ${order.shipping}
+Total: ${total}
+
+Items:
+${summary}`;
+
+  const adminMsg = ORDER_EMAIL_TO ? {
+    from: `Store <${SMTP_USER || 'no-reply@store.local'}>`,
+    to: ORDER_EMAIL_TO,
+    subject: `New order ${order._id}`,
+    text
+  } : null;
+
+  const customerMsg = {
+    from: `Store <${SMTP_USER || 'no-reply@store.local'}>`,
+    to: user.email,
+    subject: `Your order ${order._id}`,
+    text: `Thanks for your order!\n\n${text}`
+  };
+
+  // Fire both sends without blocking the route; swallow individual errors
+  const tasks = [
+    adminMsg && transporter.sendMail(adminMsg),
+    transporter.sendMail(customerMsg)
+  ].filter(Boolean);
+
+  await Promise.allSettled(tasks);
 }

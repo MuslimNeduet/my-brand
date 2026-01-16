@@ -3,7 +3,7 @@ import Order from '../models/Order.js';
 import Product from '../models/Product.js';
 import User from '../models/User.js';
 import { protect } from '../middleware/auth.js';
-import { transporter } from '../utils/mailer.js';
+import { sendOrderEmails } from '../utils/mailer.js';
 
 const router = express.Router();
 
@@ -72,31 +72,10 @@ router.post('/', protect, async (req, res) => {
     // Respond immediately so the client doesn’t hang
     res.status(201).json({ ok: true, orderId: order._id, total });
 
-    // Fire-and-forget: send emails without blocking response
-    setImmediate(async () => {
-      try {
-        if (transporter) {
-          const toAdmin = process.env.ORDER_EMAIL_TO;
-          const summary = normalized.map(i => `${i.name} x${i.qty} @ ${i.price}`).join('\n');
-          const text = `New order ${order._id}\nCustomer: ${user.name} <${user.email}>\nSubtotal: ${subtotal}\nTax: ${order.tax}\nShipping: ${order.shipping}\nTotal: ${total}\n\nItems:\n${summary}`;
-          if (toAdmin) {
-            await transporter.sendMail({
-              from: `Store <${process.env.SMTP_USER || 'no-reply@store.local'}>`,
-              to: toAdmin,
-              subject: `New order ${order._id}`,
-              text
-            });
-          }
-          await transporter.sendMail({
-            from: `Store <${process.env.SMTP_USER || 'no-reply@store.local'}>`,
-            to: user.email,
-            subject: `Your order ${order._id}`,
-            text: `Thanks for your order!\n\n${text}`
-          });
-        }
-      } catch (e) {
-        console.error('Order email failed:', e.message);
-      }
+    // Background email sending — do not block the HTTP response
+    setImmediate(() => {
+      sendOrderEmails({ order, user, items: normalized, subtotal, total })
+        .catch(e => console.error('Order email failed (non-blocking):', e.message));
     });
   } catch (e) {
     console.error('Create order error:', e);
