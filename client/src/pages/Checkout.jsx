@@ -2,14 +2,13 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api.js';
 import { useCart } from '../state/CartContext.jsx';
-import { useAuth } from '../state/AuthContext.jsx';
 
 export default function Checkout() {
   const { items, subtotal, clearCart } = useCart();
-  const { isAuthenticated } = useAuth();
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const navigate = useNavigate();
+  const isAuthenticated = !!localStorage.getItem('token');
 
   const placeOrder = async (e) => {
     e.preventDefault();

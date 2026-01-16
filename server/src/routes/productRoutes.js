@@ -1,24 +1,20 @@
 import express from 'express';
+import Product from '../models/Product.js';
+import { protect, adminOnly } from '../middleware/auth.js';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import Product from '../models/Product.js';
-import { protect, adminOnly } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Resolve uploads directory relative to this file (server/uploads)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const uploadDir = path.join(__dirname, '..', 'uploads');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
-// Multer storage for local uploads
 const storage = multer.diskStorage({
-  destination(req, file, cb) {
-    cb(null, uploadDir);
-  },
+  destination(req, file, cb) { cb(null, uploadDir); },
   filename(req, file, cb) {
     const ext = path.extname(file.originalname);
     const base = path.basename(file.originalname, ext).replace(/\s+/g, '_');
@@ -27,12 +23,11 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// Public: list & details
 router.get('/', async (req, res) => {
   const { q } = req.query;
   const filter = q ? { name: { $regex: q, $options: 'i' } } : {};
   const products = await Product.find(filter).sort({ createdAt: -1 }).limit(200);
-  res.set('Cache-Control', 'no-store');     // prevent 304/empty body
+  res.set('Cache-Control', 'no-store');
   res.json(products);
 });
 
@@ -43,7 +38,6 @@ router.get('/:id', async (req, res) => {
   res.json(product);
 });
 
-// Admin: create/update/delete
 router.post('/', protect, adminOnly, async (req, res) => {
   const product = await Product.create(req.body);
   res.status(201).json(product);
@@ -59,7 +53,6 @@ router.delete('/:id', protect, adminOnly, async (req, res) => {
   res.json({ ok: true });
 });
 
-// Admin: upload product image
 router.post('/upload', protect, adminOnly, upload.single('image'), async (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'No file' });
   const url = `/uploads/${req.file.filename}`;

@@ -13,9 +13,10 @@ export default function Login() {
     setErr('');
     try {
       const res = await api.post('/auth/login', { email, password });
-      const { token } = res.data || {};
+      const { token, user } = res.data || {};
       if (!token) throw new Error('No token received');
       setAuthToken(token);
+      localStorage.setItem('user', JSON.stringify(user || null));
       navigate('/');
     } catch (e) {
       setErr(e?.response?.data?.message || 'Login failed');
