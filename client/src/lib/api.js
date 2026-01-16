@@ -1,9 +1,9 @@
 import axios from 'axios';
-
 const baseURL = import.meta.env.VITE_API_URL || '/api';
-const api = axios.create({ baseURL });
 
-// Bust caching on GET (avoids 304 with empty body causing undefined data)
+const api = axios.create({ baseURL, timeout: 12000 });
+
+// Avoid 304/no-body on GETs
 api.interceptors.request.use((config) => {
   if ((config.method || 'get').toLowerCase() === 'get') {
     config.params = { ...(config.params || {}), _ts: Date.now() };
@@ -11,7 +11,6 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Load token on startup
 const savedToken = localStorage.getItem('token');
 if (savedToken) {
   api.defaults.headers.common['Authorization'] = `Bearer ${savedToken}`;

@@ -4,93 +4,55 @@ import api from '../lib/api.js';
 import { useCart } from '../state/CartContext.jsx';
 
 export default function Checkout() {
-  const { items, subtotal, clear } = useCart();
-  const navigate = useNavigate();
-  const [err, setErr] = useState('');
+  const { items, subtotal, clearCart } = useCart();
   const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+  const navigate = useNavigate();
 
-  const [customer, setCustomer] = useState({ name: '', email: '', phone: '' });
-  const [address, setAddress] = useState({ houseNo:'', streetNo:'', area:'', city:'', province:'', country:'' });
-
-  const update = (obj, set) => (e) => set({ ...obj, [e.target.name]: e.target.value });
-
-  const onSubmit = async (e) => {
+  const placeOrder = async (e) => {
     e.preventDefault();
-    setErr('');
-    if (!items.length) { setErr('Cart is empty.'); return; }
     setLoading(true);
+    setErr('');
     try {
-      await api.post('/orders', { customer, address, items });
-      clear();
-      navigate('/thank-you');
+      const payload = {
+        items: items.map(i => ({ product: i._id, qty: i.qty })),
+        tax: 0,
+        shipping: 0
+      };
+      const res = await api.post('/orders', payload);
+      if (res?.data?.ok) {
+        clearCart();
+        navigate('/thank-you');
+      } else {
+        throw new Error(res?.data?.message || 'Unknown error');
+      }
     } catch (e) {
-      setErr(e?.response?.data?.message || 'Failed to place order');
+      console.error('Order place error:', e);
+      setErr(e?.response?.data?.message || e.message || 'Failed to place order');
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <form className="grid" style={{ gridTemplateColumns: '2fr 1fr' }} onSubmit={onSubmit}>
+  if (!items.length) {
+    return (
       <div className="panel">
         <h2>Checkout</h2>
-        {err && <p className="error">{err}</p>}
-
-        <div className="field">
-          <label className="label">Full Name</label>
-          <input className="input" required name="name" value={customer.name} onChange={update(customer, setCustomer)} />
-        </div>
-        <div className="field">
-          <label className="label">Email</label>
-          <input className="input" required type="email" name="email" value={customer.email} onChange={update(customer, setCustomer)} />
-        </div>
-        <div className="field">
-          <label className="label">Contact Number</label>
-          <input className="input" required type="tel" name="phone" value={customer.phone} onChange={update(customer, setCustomer)} placeholder="+92XXXXXXXXXX" />
-        </div>
-
-        <h3>Shipping Address</h3>
-        <div className="grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
-          <div className="field">
-            <label className="label">House No</label>
-            <input className="input" required name="houseNo" value={address.houseNo} onChange={update(address, setAddress)} />
-          </div>
-          <div className="field">
-            <label className="label">Street No</label>
-            <input className="input" required name="streetNo" value={address.streetNo} onChange={update(address, setAddress)} />
-          </div>
-          <div className="field">
-            <label className="label">Area</label>
-            <input className="input" required name="area" value={address.area} onChange={update(address, setAddress)} />
-          </div>
-          <div className="field">
-            <label className="label">City</label>
-            <input className="input" required name="city" value={address.city} onChange={update(address, setAddress)} />
-          </div>
-          <div className="field">
-            <label className="label">Province</label>
-            <input className="input" required name="province" value={address.province} onChange={update(address, setAddress)} />
-          </div>
-          <div className="field">
-            <label className="label">Country</label>
-            <input className="input" required name="country" value={address.country} onChange={update(address, setAddress)} />
-          </div>
-        </div>
-        <div className="spacer"></div>
-        <button className="btn btn-primary" type="submit" disabled={loading}>
-          {loading ? 'Placing Order...' : 'Place Order'}
-        </button>
+        <p className="muted">Your cart is empty.</p>
       </div>
+    );
+  }
 
-      <div className="panel">
-        <h3>Summary</h3>
-        <p className="row"><span className="muted">Items</span><span>{items.length}</span></p>
-        <p className="row"><span className="muted">Subtotal</span><span>${subtotal.toFixed(2)}</span></p>
-        <div className="spacer"></div>
-        <ul style={{ paddingLeft: 18 }}>
-          {items.map(it => <li key={it._id}>{it.name} × {it.qty}</li>)}
-        </ul>
-      </div>
-    </form>
+  return (
+    <div className="panel">
+      <h2>Checkout</h2>
+      {err && <p className="error">{err}</p>}
+      <p className="row"><span className="muted">Items</span> <span>{items.length}</span></p>
+      <p className="row"><span className="muted">Subtotal</span> <span>${Number(subtotal ?? 0).toFixed(2)}</span></p>
+      <div className="spacer"></div>
+      <button className="btn btn-primary" disabled={loading} onClick={placeOrder}>
+        {loading ? 'Placing order...' : 'Place Order'}
+      </button>
+    </div>
   );
 }
