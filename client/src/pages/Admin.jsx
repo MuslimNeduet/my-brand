@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import api from '../lib/api.js';
 
 export default function Admin() {
-  const [products, setProducts] = useState([]);
+  const [products, setProducts] = useState([]);   // always start with an array
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(true);
 
@@ -21,9 +21,13 @@ export default function Admin() {
     try {
       setLoading(true);
       const res = await api.get('/products');
-      setProducts(res.data);
+      const data = res?.data;
+      setProducts(Array.isArray(data) ? data : []);  // guard
+      setErr('');
     } catch (e) {
+      console.error('Products load error:', e);
       setErr('Failed to load products');
+      setProducts([]);  // ensure array on error
     } finally {
       setLoading(false);
     }
@@ -44,7 +48,12 @@ export default function Admin() {
     setErr('');
     try {
       const url = await uploadImage();
-      const payload = { ...form, price: Number(form.price || 0), countInStock: Number(form.countInStock || 0), imageUrl: url || form.imageUrl };
+      const payload = {
+        ...form,
+        price: Number(form.price || 0),
+        countInStock: Number(form.countInStock || 0),
+        imageUrl: url || form.imageUrl
+      };
       await api.post('/products', payload);
       setForm({ name: '', price: '', countInStock: '', category: '', brand: '', description: '', imageUrl: '' });
       setFile(null);
@@ -71,6 +80,8 @@ export default function Admin() {
       setErr('Delete failed');
     }
   };
+
+  const list = Array.isArray(products) ? products : [];  // use a safe list
 
   return (
     <div className="grid" style={{ gridTemplateColumns: '1fr 2fr' }}>
@@ -99,12 +110,13 @@ export default function Admin() {
       <div className="panel">
         <h2>Products</h2>
         {loading && <p className="muted">Loading...</p>}
+        {!loading && !err && list.length === 0 && <p className="muted">No products found.</p>}
         <table className="table">
           <thead>
             <tr><th>Image</th><th>Name</th><th>Price</th><th>Stock</th><th></th></tr>
           </thead>
           <tbody>
-            {products.map(p => (
+            {list.map(p => (
               <tr key={p._id}>
                 <td>{p.imageUrl && <img src={p.imageUrl} alt={p.name} style={{ width:52, height:52, objectFit:'cover', borderRadius:8 }} />}</td>
                 <td>
