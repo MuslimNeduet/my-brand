@@ -31,19 +31,19 @@ export default function Cart() {
                   {it.imageUrl && <img src={it.imageUrl} alt={it.name} style={{ width:52, height:52, objectFit:'cover', borderRadius:8, border:'1px solid #333' }} />}
                   <div>
                     <div style={{ fontWeight:700 }}>{it.name}</div>
-                    <div className="muted">${it.price.toFixed(2)}</div>
+                    <div className="muted">${Number(it.price ?? 0).toFixed(2)}</div>
                   </div>
                 </td>
                 <td>
                   <input className="input" style={{ width:90 }} type="number" min="1" value={it.qty} onChange={(e)=>setQty(it._id, Number(e.target.value || 1))}/>
                 </td>
-                <td>${(it.price * it.qty).toFixed(2)}</td>
+                <td>${Number((it.price ?? 0) * (it.qty ?? 1)).toFixed(2)}</td>
                 <td><button className="btn" onClick={()=>removeFromCart(it._id)}>Remove</button></td>
               </tr>
             ))}
           </tbody>
           <tfoot>
-            <tr><td colSpan="4" style={{ textAlign:'right' }}>Subtotal: <strong>${subtotal.toFixed(2)}</strong></td></tr>
+            <tr><td colSpan="4" style={{ textAlign:'right' }}>Subtotal: <strong>${Number(subtotal ?? 0).toFixed(2)}</strong></td></tr>
           </tfoot>
         </table>
       </div>
@@ -51,7 +51,7 @@ export default function Cart() {
       <div className="panel">
         <h3>Order Summary</h3>
         <p className="row"><span className="muted">Items</span> <span>{items.length}</span></p>
-        <p className="row"><span className="muted">Subtotal</span> <span>${subtotal.toFixed(2)}</span></p>
+        <p className="row"><span className="muted">Subtotal</span> <span>${Number(subtotal ?? 0).toFixed(2)}</span></p>
         <div className="spacer"></div>
         <button className="btn btn-primary" onClick={()=>navigate('/checkout')}>Proceed to Checkout</button>
         <div className="spacer"></div>

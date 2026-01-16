@@ -16,30 +16,27 @@ import { CartProvider } from './state/CartContext.jsx';
 import { AuthProvider } from './state/AuthContext.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import AdminRoute from './components/AdminRoute.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <BrowserRouter>
-    <AuthProvider>
-      <CartProvider>
-        <App>
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/product/:id" element={<ProductDetail />} />
-            <Route path="/cart" element={
-              <ProtectedRoute><Cart /></ProtectedRoute>
-            } />
-            <Route path="/checkout" element={
-              <ProtectedRoute><Checkout /></ProtectedRoute>
-            } />
-            <Route path="/thank-you" element={<ThankYou />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/admin" element={
-              <AdminRoute><Admin /></AdminRoute>
-            } />
-          </Routes>
-        </App>
-      </CartProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <CartProvider>
+          <App>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/product/:id" element={<ProductDetail />} />
+              <Route path="/cart" element={<ProtectedRoute><Cart /></ProtectedRoute>} />
+              <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
+              <Route path="/thank-you" element={<ThankYou />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
+            </Routes>
+          </App>
+        </CartProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   </BrowserRouter>
 );

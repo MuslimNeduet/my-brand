@@ -53,7 +53,7 @@ export default function Home() {
             <div className="body">
               <h3 style={{ margin: '0 0 6px' }}>{p.name}</h3>
               <div className="row">
-                <span className="price">${p.price}</span>
+                <span className="price">${Number(p.price ?? 0).toFixed(2)}</span>
                 <span className="muted">{p.countInStock > 0 ? 'In stock' : 'Out of stock'}</span>
               </div>
               <div className="row" style={{ marginTop: 12, gap: 12 }}>

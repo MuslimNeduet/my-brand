@@ -36,7 +36,7 @@ export default function ProductDetail() {
       </div>
       <div className="panel">
         <h2 style={{ marginTop: 0 }}>{p.name}</h2>
-        <p className="price" style={{ fontSize: 22 }}>${p.price}</p>
+        <p className="price" style={{ fontSize: 22 }}>${Number(p.price ?? 0).toFixed(2)}</p>
         <p className="muted">{p.description}</p>
         <div className="spacer"></div>
         <div className="field" style={{ maxWidth: 160 }}>
