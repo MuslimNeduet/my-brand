@@ -5,7 +5,7 @@ import { useCart } from '../state/CartContext.jsx';
 import { useAuth } from '../state/AuthContext.jsx';
 
 export default function Home() {
-  const [products, setProducts] = useState([]);
+  const [products, setProducts] = useState([]); // always an array
   const [q, setQ] = useState('');
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
@@ -17,10 +17,12 @@ export default function Home() {
     try {
       setLoading(true);
       const res = await api.get('/products', { params: query ? { q: query } : {} });
-      setProducts(res.data);
+      const data = res?.data;
+      setProducts(Array.isArray(data) ? data : []); // guard against 304/no body or unexpected shapes
       setErr('');
     } catch {
       setErr('Failed to load products');
+      setProducts([]); // ensure array on error
     } finally {
       setLoading(false);
     }
@@ -34,6 +36,8 @@ export default function Home() {
     addToCart(p, 1);
   };
 
+  const list = Array.isArray(products) ? products : [];
+
   return (
     <div>
       <form onSubmit={onSearch} className="row" style={{ gap: 8, marginBottom: 16 }}>
@@ -43,9 +47,10 @@ export default function Home() {
 
       {loading && <p className="muted">Loading...</p>}
       {err && <p className="error">{err}</p>}
+      {!loading && !err && list.length === 0 && <p className="muted">No products found.</p>}
 
       <div className="grid">
-        {products.map((p) => (
+        {list.map((p) => (
           <div key={p._id} className="card">
             <div className="media">
               {p.imageUrl ? <img src={p.imageUrl} alt={p.name} /> : <span className="muted">No image</span>}
