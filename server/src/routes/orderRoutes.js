@@ -61,7 +61,7 @@ router.post('/', protect, async (req, res) => {
 
     if (stockOps.length) await Product.bulkWrite(stockOps);
 
-    // Respond immediately (prevents long timeouts)
+    // Respond immediately
     res.status(201).json({ ok: true, orderId: order._id, total });
 
     // Non-blocking emails

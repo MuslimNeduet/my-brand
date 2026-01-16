@@ -27,7 +27,7 @@ router.get('/', async (req, res) => {
   const { q } = req.query;
   const filter = q ? { name: { $regex: q, $options: 'i' } } : {};
   const products = await Product.find(filter).sort({ createdAt: -1 }).limit(200);
-  res.set('Cache-Control', 'no-store');
+  res.set('Cache-Control', 'no-store'); // avoid 304 caching
   res.json(products);
 });
 
@@ -38,6 +38,7 @@ router.get('/:id', async (req, res) => {
   res.json(product);
 });
 
+// Admin ops
 router.post('/', protect, adminOnly, async (req, res) => {
   const product = await Product.create(req.body);
   res.status(201).json(product);

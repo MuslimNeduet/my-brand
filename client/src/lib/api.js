@@ -15,11 +15,8 @@ api.interceptors.request.use((config) => {
 });
 
 export function setAuthToken(token) {
-  if (token) {
-    localStorage.setItem('token', token);
-  } else {
-    localStorage.removeItem('token');
-  }
+  if (token) localStorage.setItem('token', token);
+  else localStorage.removeItem('token');
 }
 
 export default api;
